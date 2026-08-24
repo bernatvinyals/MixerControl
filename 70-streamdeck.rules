@@ -1,0 +1,11 @@
+# =============================================================================
+# 70-streamdeck.rules
+# Allows non-root access to Elgato Stream Deck devices.
+# Install: sudo cp 70-streamdeck.rules /etc/udev/rules.d/
+# Then:    sudo udevadm control --reload-rules && sudo udevadm trigger
+# Unplug and replug the Stream Deck afterwards.
+# =============================================================================
+
+# Elgato vendor ID 0fd9 — covers all current Stream Deck models
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", TAG+="uaccess"

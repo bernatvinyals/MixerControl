@@ -1,0 +1,35 @@
+# =============================================================================
+# streamdeck-av.service — systemd USER unit (runs as your user, not root).
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp streamdeck-av.service ~/.config/systemd/user/
+#   # Edit the two paths below to match where you put the project and node.
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now streamdeck-av.service
+#
+# Logs:    journalctl --user -u streamdeck-av -f
+# Restart: systemctl --user restart streamdeck-av
+# Stop:    systemctl --user stop streamdeck-av
+#
+# To have it run even when you're not logged in (e.g. a dedicated rig):
+#   sudo loginctl enable-linger $USER
+# =============================================================================
+
+[Unit]
+Description=Stream Deck ATEM + OBS controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# EDIT: absolute path to the project directory
+WorkingDirectory=%h/streamdeck-av
+# EDIT: absolute path to node (run `which node` to find it)
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target
