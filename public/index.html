@@ -70,6 +70,17 @@
         <input id="deckRows" type="number" min="1" max="16" style="width:60px" /> rows
       </div>
       <p class="hint">Match your physical device: Mini is 3×2, Original/MK.2 is 5×3, XL is 8×4. Only affects the key-index convention and the preview below — doesn't limit which indices you can use.</p>
+
+      <div class="row">
+        <label>Device</label>
+        <span id="deckSelectedLabel" class="hint"></span>
+      </div>
+      <div class="row">
+        <button id="scanDeckBtn">Rescan</button>
+        <button id="clearDeckSelectionBtn" class="small">Use first found</button>
+      </div>
+      <div id="deckScanStatus" class="hint"></div>
+      <ul id="deckDeviceList" class="found-list"></ul>
     </section>
 
     <section class="card grow">

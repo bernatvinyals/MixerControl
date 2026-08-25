@@ -18,6 +18,7 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const OBSWebSocket = require('obs-websocket-js').default;
+const { listStreamDecks, getStreamDeckModelName } = require('@elgato-stream-deck/node');
 const { discoverAtems } = require('./discovery');
 const svc = require('./servicectl');
 const { normalizeConfig } = require('./configSchema');
@@ -86,6 +87,9 @@ function validate(cfg) {
   }
   if (!cfg.deck || !Number.isInteger(cfg.deck.rows) || cfg.deck.rows < 1) {
     errors.push('deck.rows must be a positive integer');
+  }
+  if (!cfg.deck || typeof cfg.deck.serialNumber !== 'string') {
+    errors.push('deck.serialNumber must be a string (empty is fine)');
   }
   if (!cfg.scenes || typeof cfg.scenes !== 'object') {
     errors.push('scenes must be an object');
@@ -169,6 +173,23 @@ function createApp() {
     try {
       const found = await discoverAtems(4000);
       res.json({ devices: found });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // USB enumeration, not exclusive access -- safe to call even while the
+  // main service already has a Stream Deck open.
+  app.get('/api/deck/list', async (req, res) => {
+    try {
+      const decks = await listStreamDecks();
+      res.json({
+        devices: decks.map((d) => ({
+          model: d.model,
+          modelName: getStreamDeckModelName(d.model),
+          serialNumber: d.serialNumber || null,
+        })),
+      });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

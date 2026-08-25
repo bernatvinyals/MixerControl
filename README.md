@@ -102,6 +102,17 @@ protection entirely). From there you can:
   match your physical device (Mini 3×2, Original/MK.2 5×3, XL 8×4, ...) —
   this drives the key-index convention and the live preview grid, and the
   service warns at startup if it doesn't match what's actually plugged in.
+- **Pick which Stream Deck to use**, if more than one is plugged in — the
+  Stream Deck panel auto-lists connected devices (rescan with the button
+  after plugging/unplugging one) and lets you pin a specific one by serial
+  number, which survives replugging and reboots (the OS device path doesn't,
+  so that's deliberately not what's used for this). Leave it on "auto" to
+  just use whichever one is found first, same as before this existed. If a
+  pinned serial isn't connected when the service starts, it refuses to start
+  and tells you what *is* connected, rather than silently grabbing a
+  different physical device — this matters most with two rigs' Stream Decks
+  near each other, where sending commands to the wrong one is worse than not
+  starting.
 
 Click **Save** to write `config.json`. The main service (`npm start`) only
 reads config at startup, so restart it after saving — the **Service** panel

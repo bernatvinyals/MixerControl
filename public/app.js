@@ -21,6 +21,7 @@ const state = {
   brightness: 80,
   deckCols: 5,
   deckRows: 3,
+  deckSerial: '', // '' = use whichever Stream Deck is found first
   scenes: [],        // { id, key, value }
   pages: [],         // { pid, id, keys: [ {id, index, label, color, action, input, scene, folderTarget, highlight} ] }
   activePagePid: null, // which page's keys the table below is showing/editing
@@ -50,6 +51,7 @@ async function loadConfig() {
   state.brightness = cfg.deck.brightness;
   state.deckCols = cfg.deck.cols;
   state.deckRows = cfg.deck.rows;
+  state.deckSerial = cfg.deck.serialNumber || '';
 
   state.scenes = Object.entries(cfg.scenes).map(([key, value]) => ({ id: nextId++, key, value }));
 
@@ -105,6 +107,7 @@ function renderAll() {
   $('keyIndexHint').textContent =
     `Key index = row * ${state.deckCols} + col for your ${state.deckCols}×${state.deckRows} deck (0 = top-left). ` +
     `Add or remove rows to add/remove controls on this page.`;
+  updateDeckSelectedLabel();
   renderScenes();
   renderPages();
   renderKeys();
@@ -407,6 +410,7 @@ function buildConfigPayload() {
       brightness: Number($('brightness').value),
       cols: Number($('deckCols').value),
       rows: Number($('deckRows').value),
+      serialNumber: state.deckSerial || '',
     },
     scenes,
     pages,
@@ -497,6 +501,54 @@ async function scanForAtems() {
   }
 }
 
+// ---- Stream Deck device selection --------------------------------------------
+
+function updateDeckSelectedLabel() {
+  $('deckSelectedLabel').textContent = state.deckSerial
+    ? `Pinned to serial ${state.deckSerial}`
+    : 'Auto — whichever Stream Deck is found first';
+}
+
+async function scanForDecks() {
+  const btn = $('scanDeckBtn');
+  const listEl = $('deckDeviceList');
+  btn.disabled = true;
+  $('deckScanStatus').textContent = 'Scanning USB…';
+  listEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/deck/list');
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'scan failed');
+    if (!body.devices.length) {
+      $('deckScanStatus').textContent = 'No Stream Decks found. Check the USB connection.';
+    } else {
+      $('deckScanStatus').textContent = `Found ${body.devices.length} device(s):`;
+      for (const dev of body.devices) {
+        const li = document.createElement('li');
+        const selected = !!dev.serialNumber && dev.serialNumber === state.deckSerial;
+        const label = `${dev.modelName} (${dev.model})` + (dev.serialNumber ? ` — ${dev.serialNumber}` : ' — no serial number reported');
+        li.innerHTML = `<span>${escapeAttr(label)}</span>`;
+        const useBtn = document.createElement('button');
+        useBtn.className = 'small';
+        useBtn.textContent = selected ? 'Selected' : 'Use';
+        useBtn.disabled = selected || !dev.serialNumber;
+        if (!dev.serialNumber) useBtn.title = "this device doesn't report a serial number, so it can't be pinned reliably";
+        useBtn.addEventListener('click', () => {
+          state.deckSerial = dev.serialNumber;
+          updateDeckSelectedLabel();
+          scanForDecks(); // re-render so the newly-picked row shows as selected
+        });
+        li.appendChild(useBtn);
+        listEl.appendChild(li);
+      }
+    }
+  } catch (e) {
+    $('deckScanStatus').textContent = 'Scan failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function testObs() {
   const statusEl = $('obsTestStatus');
   statusEl.textContent = 'Connecting…';
@@ -516,6 +568,12 @@ async function testObs() {
 $('saveBtn').addEventListener('click', save);
 $('scanBtn').addEventListener('click', scanForAtems);
 $('testObsBtn').addEventListener('click', testObs);
+$('scanDeckBtn').addEventListener('click', scanForDecks);
+$('clearDeckSelectionBtn').addEventListener('click', () => {
+  state.deckSerial = '';
+  updateDeckSelectedLabel();
+  scanForDecks();
+});
 $('brightness').addEventListener('input', (e) => { $('brightnessVal').textContent = e.target.value; });
 function onDeckGridChange() {
   const cols = Math.max(1, Number($('deckCols').value) || 1);
@@ -623,4 +681,9 @@ $('svcRestartBtn').addEventListener('click', (e) => serviceAction('restart', e.t
 refreshServiceStatus();
 setInterval(refreshServiceStatus, 3000);
 
-loadConfig().catch((e) => setStatus('Failed to load config: ' + e.message, 'err'));
+// Auto-scan for connected Stream Decks on load -- unlike the ATEM mDNS scan
+// (a deliberate ~4s network wait, left as a manual button), USB enumeration
+// is near-instant, so there's no reason to make the user click first.
+loadConfig()
+  .then(scanForDecks)
+  .catch((e) => setStatus('Failed to load config: ' + e.message, 'err'));

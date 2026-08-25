@@ -128,7 +128,25 @@ async function main() {
 
   const decks = await listStreamDecks();
   if (decks.length === 0) throw new Error('No Stream Deck found — check USB connection and udev rule');
-  deck = await openStreamDeck(decks[0].path);
+
+  let chosen = decks[0];
+  if (config.deck.serialNumber) {
+    const match = decks.find((d) => d.serialNumber === config.deck.serialNumber);
+    if (!match) {
+      const found = decks.map((d) => d.serialNumber || `${d.model} (no serial)`).join(', ');
+      throw new Error(
+        `Configured Stream Deck (serial ${config.deck.serialNumber}) is not connected. ` +
+        `Connected: ${found}. Pick a different one in the config UI's Stream Deck panel, or clear the selection.`
+      );
+    }
+    chosen = match;
+  } else if (decks.length > 1) {
+    console.warn(
+      `[deck] ${decks.length} Stream Decks connected and none selected in config — using the first one found ` +
+      `(serial ${chosen.serialNumber || 'unknown'}). Pick one explicitly in the config UI's Stream Deck panel.`
+    );
+  }
+  deck = await openStreamDeck(chosen.path);
   await deck.clearPanel();
   await deck.setBrightness(config.deck.brightness);
   const keyControls = deck.CONTROLS.filter((c) => c.type === 'button');

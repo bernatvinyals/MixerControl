@@ -30,11 +30,18 @@ function normalizeConfig(raw) {
   // convention (row * cols + col), the config UI's preview grid, and a
   // startup sanity check against whatever's actually plugged in. Default to
   // 5x3 (the original assumption this app shipped with) if missing/invalid.
+  //
+  // deck.serialNumber picks which physical Stream Deck to use when more
+  // than one is connected (serial number is a stable hardware identifier
+  // that survives replugging/reboots, unlike the OS device path). Empty
+  // string means "just use whichever one is found first", preserving the
+  // original single-device behavior.
   cfg.deck = {
     ...cfg.deck,
     brightness: Number.isInteger(cfg.deck?.brightness) ? cfg.deck.brightness : 80,
     cols: positiveInt(cfg.deck?.cols, DEFAULT_DECK_COLS),
     rows: positiveInt(cfg.deck?.rows, DEFAULT_DECK_ROWS),
+    serialNumber: typeof cfg.deck?.serialNumber === 'string' ? cfg.deck.serialNumber : '',
   };
 
   if (!cfg.pages || typeof cfg.pages !== 'object' || Object.keys(cfg.pages).length === 0) {

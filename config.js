@@ -22,6 +22,10 @@
 //                         config UI's preview grid, and a startup warning
 //                         if it doesn't match what's actually plugged in --
 //                         doesn't limit what indices you can use.
+//   deck.serialNumber   — which physical Stream Deck to use when more than
+//                         one is connected (pick it in the config UI's
+//                         Stream Deck panel). Empty string = just use
+//                         whichever one is found first.
 //   scenes              — map of short names -> real OBS scene names
 //                         (must match OBS exactly, case-sensitive)
 //   homePage            — id of the page shown when the service starts
