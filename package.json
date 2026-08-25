@@ -5,12 +5,15 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "config-ui": "node src/webui.js"
   },
   "dependencies": {
     "@elgato-stream-deck/node": "^7.1.0",
     "@napi-rs/canvas": "^1.0.0",
     "atem-connection": "^3.9.0",
+    "bonjour-service": "^1.2.1",
+    "express": "^4.19.2",
     "obs-websocket-js": "^5.0.8"
   },
   "engines": {

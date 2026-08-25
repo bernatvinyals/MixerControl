@@ -1,0 +1,103 @@
+{
+  "atem": {
+    "ip": "192.168.1.107"
+  },
+  "obs": {
+    "url": "ws://127.0.0.1:4455",
+    "password": "gVxPTrT1Jng9ebPx"
+  },
+  "deck": {
+    "brightness": 79
+  },
+  "scenes": {
+    "scene1": "Scene 1",
+    "scene2": "Scene 2",
+    "scene3": "Scene 3"
+  },
+  "keys": {
+    "0": {
+      "label": "IN 1",
+      "color": "#444444",
+      "action": "atemProgram",
+      "input": 1,
+      "feedback": "atemProgram"
+    },
+    "1": {
+      "label": "IN 2",
+      "color": "#444444",
+      "action": "atemProgram",
+      "input": 2,
+      "feedback": "atemProgram"
+    },
+    "2": {
+      "label": "IN 3",
+      "color": "#444444",
+      "action": "atemProgram",
+      "input": 3,
+      "feedback": "atemProgram"
+    },
+    "3": {
+      "label": "IN 4",
+      "color": "#444444",
+      "action": "atemProgram",
+      "input": 4,
+      "feedback": "atemProgram"
+    },
+    "4": {
+      "label": "CUT",
+      "color": "#7a1f1f",
+      "action": "atemCut"
+    },
+    "5": {
+      "label": "AUTO",
+      "color": "#1f4e7a",
+      "action": "atemAuto"
+    },
+    "6": {
+      "label": "FTB",
+      "color": "#222222",
+      "action": "atemFTB",
+      "feedback": "atemFTB"
+    },
+    "10": {
+      "label": "OBS 1",
+      "color": "#3a3a55",
+      "action": "obsScene",
+      "scene": "scene1",
+      "feedback": "obsScene"
+    },
+    "11": {
+      "label": "OBS 2",
+      "color": "#3a3a55",
+      "action": "obsScene",
+      "scene": "scene2",
+      "feedback": "obsScene"
+    },
+    "12": {
+      "label": "OBS 3",
+      "color": "#3a3a55",
+      "action": "obsScene",
+      "scene": "scene3",
+      "feedback": "obsScene"
+    },
+    "13": {
+      "label": "STREAM",
+      "color": "#1f5f2f",
+      "action": "obsToggleStream",
+      "feedback": "obsStream"
+    },
+    "14": {
+      "label": "REC",
+      "color": "#5f1f1f",
+      "action": "obsToggleRecord",
+      "feedback": "obsRecord"
+    }
+  },
+  "feedbackColors": {
+    "programActive": "#cc0000",
+    "sceneActive": "#2266dd",
+    "streaming": "#cc0000",
+    "recording": "#cc0000",
+    "ftbActive": "#cc0000"
+  }
+}

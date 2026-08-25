@@ -7,6 +7,7 @@ const config = require('../config');
 const { drawKey, hasCanvas } = require('./render');
 const { ObsController } = require('./obs');
 const { AtemController } = require('./atem');
+const { acquireLock } = require('./singleton');
 
 let deck = null;
 
@@ -76,6 +77,11 @@ function handleKey(idx) {
 }
 
 async function main() {
+  // Must be first: refuses to continue if another instance already holds the
+  // Stream Deck / ATEM / OBS (whether started via npm start, systemd, or the
+  // config UI) — prevents two instances fighting over the same hardware.
+  acquireLock();
+
   if (!hasCanvas()) {
     console.warn('[render] @napi-rs/canvas not installed — keys will show colors only, no text labels.');
     console.warn('[render] to get text labels: npm install @napi-rs/canvas');

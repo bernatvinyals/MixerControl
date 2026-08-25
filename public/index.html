@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stream Deck / ATEM / OBS — Config</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <h1>Stream Deck controller</h1>
+
+  <div class="svc-bar">
+    <span id="svcBadge" class="badge">…</span>
+    <span id="svcDetail" class="hint"></span>
+    <button id="svcStartBtn" class="small">Start</button>
+    <button id="svcStopBtn" class="small">Stop</button>
+    <button id="svcRestartBtn" class="small primary">Restart</button>
+  </div>
+
+  <div class="header-actions">
+    <span id="status" class="status"></span>
+    <button id="saveBtn" class="primary">Save</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="col">
+    <section class="card">
+      <h2>ATEM</h2>
+      <div class="row">
+        <label>IP address</label>
+        <input id="atemIp" type="text" placeholder="192.168.0.22" />
+      </div>
+      <div class="row">
+        <button id="scanBtn">Scan network</button>
+      </div>
+      <div id="scanStatus" class="hint"></div>
+      <ul id="atemList" class="found-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>OBS</h2>
+      <div class="row">
+        <label>Websocket URL</label>
+        <input id="obsUrl" type="text" placeholder="ws://127.0.0.1:4455" />
+      </div>
+      <div class="row">
+        <label>Password</label>
+        <input id="obsPassword" type="password" />
+        <button id="togglePwBtn" type="button" class="small">Show</button>
+      </div>
+      <div class="row">
+        <button id="testObsBtn">Test connection</button>
+        <span id="obsTestStatus" class="hint"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Stream Deck</h2>
+      <div class="row">
+        <label>Brightness</label>
+        <input id="brightness" type="range" min="0" max="100" step="1" />
+        <span id="brightnessVal"></span>
+      </div>
+    </section>
+
+    <section class="card grow">
+      <h2>Service log</h2>
+      <p class="hint">Managed via <span id="svcMode">…</span>.</p>
+      <pre id="svcLog" class="log"></pre>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>OBS scenes</h2>
+      <p class="hint">Short names used by the controls, mapped to the exact scene name in OBS.</p>
+      <table id="scenesTable">
+        <thead><tr><th>Short name</th><th>OBS scene name</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button id="addSceneBtn">+ Add scene</button>
+    </section>
+  </div>
+
+  <div class="col col-wide">
+    <section class="card grow">
+      <h2>Controls (Stream Deck keys)</h2>
+      <p class="hint">Key index = row * 5 + col for a 15-key deck (0 = top-left). Add or remove rows to add/remove controls.</p>
+      <div class="table-scroll">
+        <table id="keysTable">
+          <thead>
+            <tr>
+              <th>Key #</th><th>Label</th><th>Color</th><th>Action</th><th>Parameter</th><th>Highlight</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button id="addKeyBtn">+ Add control</button>
+    </section>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

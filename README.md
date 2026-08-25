@@ -1,4 +1,4 @@
-# Stream Deck → ATEM Mini Pro + OBS controller (Linux)
+# Stream Deck → ATEM Mini Pro + OBS controller
 
 A single Node.js service that turns a 15-key (3×5) Elgato Stream Deck into a
 combined controller for an **ATEM Mini Pro** (over the network) and **OBS Studio**
@@ -69,7 +69,67 @@ Then **unplug and replug** the Stream Deck.
 
 ### 3. Configure
 
-Open `config.js` and set:
+Settings live in `config.json` (`config.js` just loads it — don't hand-edit
+`config.js`). Easiest way to edit it is the built-in config UI:
+
+```bash
+npm run config-ui
+```
+
+Open **http://localhost:8787**. From there you can:
+- Set the **ATEM IP** by hand, or click **Scan network** to list ATEMs found
+  via mDNS on the local network and pick one.
+- Set the **OBS websocket URL/password**, with a **Test connection** button.
+- Add/remove **Stream Deck controls** (key index, label, color, action, and
+  the action's parameter — ATEM input number or OBS scene) and toggle
+  tally/state highlighting per key.
+- Manage the **OBS scene name mapping** used by `obsScene` controls.
+- Set the **Stream Deck brightness**.
+
+Click **Save** to write `config.json`. The main service (`npm start`) only
+reads config at startup, so restart it after saving — the **Service** panel
+at the top has **Start / Stop / Restart** buttons plus a live log tail, so you
+don't need a separate terminal.
+
+If `streamdeck-av.service` is installed and enabled via systemd (see below),
+those buttons drive it with `systemctl --user`/`journalctl`, so the service's
+lifecycle stays independent of the config UI — closing the UI doesn't stop
+the service. Without systemd (e.g. a plain `npm start` setup, or on Windows),
+the UI instead supervises `node src/index.js` itself as a detached process
+(log kept in `run/`), which also survives the config UI being closed or
+restarted.
+
+**Stopping always blanks the deck.** `index.js`'s own shutdown handler clears
+the panel on a graceful SIGINT/SIGTERM, but that's not guaranteed on every
+path (Windows has no real SIGTERM delivery, and a stop can in principle
+escalate to a forced kill) — so after Stop/Restart, once the old process has
+actually exited, the config UI itself opens the Stream Deck directly and
+clears it. A stopped service never leaves stale key art lit up on the deck.
+
+**Only one instance ever runs.** `index.js` takes an exclusive lock
+(`run/index.lock`) as the very first thing it does, before touching the
+Stream Deck/ATEM/OBS. If another instance already holds it — started via the
+UI, a manual `npm start`, or systemd — it refuses to start and exits with a
+clear error instead of two processes fighting over the same hardware. The
+config UI's Start/Stop/Restart buttons and status display read/act on this
+same lock, so they reflect and control whichever instance is actually
+running, however it was launched.
+
+**Long-running stability.** This is meant to be left running for days at a
+time, so a few things are deliberately bounded: OBS/ATEM reconnect logging
+backs off and rate-limits itself during a prolonged outage instead of
+spamming forever, and `run/service.log` is capped (truncated to its tail)
+both at every service start and on a 10-minute timer, so it can't grow
+without limit even if the service itself is never restarted. That timer only
+runs inside the config UI's own process, though — if you use "child" mode
+(no systemd) and close the config UI entirely while leaving the detached
+service running unattended for a long stretch, its log won't self-trim until
+the config UI is opened again. For a real production rig, prefer the
+systemd setup below: journald has its own rotation/retention independent of
+any of this.
+
+If you'd rather edit by hand, `config.json`'s fields are documented in the
+comment header of `config.js`:
 - `atem.ip` — your ATEM's IP address
 - `obs.url` / `obs.password` — match your OBS websocket settings
 - `scenes.scene1/2/3` — your exact OBS scene names (case-sensitive)
@@ -115,7 +175,9 @@ sudo loginctl enable-linger $USER
 
 ## Customizing
 
-Everything is in `config.js`:
+Use `npm run config-ui` (see above) to add/remove keys, remap actions, and
+change scene names, ATEM IP, or OBS connection settings without touching JSON
+by hand. Everything it edits lives in `config.json`:
 
 - **Remap a key** — change its entry under `keys`. Key index = `row * 5 + col`
   (top-left = 0, bottom-right = 14).
@@ -137,8 +199,12 @@ Everything is in `config.js`:
 - **ATEM won't connect** — wrong IP, or not on the same network. Confirm you can
   reach it from ATEM Software Control on the same machine first.
 - **Keys show colors but no text** — install `@napi-rs/canvas` (see step 1).
-- **Scene key doesn't highlight** — the scene name in `config.js` must match the
-  OBS scene name exactly, including capitalization and spaces.
+- **Scene key doesn't highlight** — the scene name in `config.json` must match
+  the OBS scene name exactly, including capitalization and spaces.
+- **"Scan network" finds nothing** — mDNS (UDP 5353) must be reachable between
+  this machine and the ATEM: same subnet, no VLAN/AP client-isolation, and the
+  local firewall must allow inbound mDNS replies. You can still type the IP in
+  by hand.
 
 ## Notes
 

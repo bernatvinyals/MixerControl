@@ -5,12 +5,15 @@
 
 const { Atem } = require('atem-connection');
 
+const ERROR_LOG_MIN_INTERVAL_MS = 30000; // rate-limit our own logging of library 'error' events
+
 class AtemController {
   constructor(config, onStateChange) {
     this.config = config;
     this.onStateChange = onStateChange;
     this.atem = new Atem();
     this.connected = false;
+    this._lastErrorLogAt = 0;
 
     this.state = {
       programInput: null, // current program input number
@@ -39,7 +42,15 @@ class AtemController {
         this.onStateChange();
       }
     });
-    this.atem.on('error', (e) => console.error('[ATEM] error:', e));
+    // atem-connection retries internally at its own cadence, which we don't
+    // control -- if it errors repeatedly during a prolonged outage, rate-limit
+    // our own logging of it rather than logging every single occurrence.
+    this.atem.on('error', (e) => {
+      const now = Date.now();
+      if (now - this._lastErrorLogAt < ERROR_LOG_MIN_INTERVAL_MS) return;
+      this._lastErrorLogAt = now;
+      console.error('[ATEM] error:', e);
+    });
   }
 
   _readState() {

@@ -4,6 +4,9 @@
 
 const OBSWebSocket = require('obs-websocket-js').default;
 
+const RECONNECT_MIN_MS = 3000;
+const RECONNECT_MAX_MS = 60000; // caps retry rate during a long outage so logs/CPU don't grow unbounded
+
 class ObsController {
   constructor(config, onStateChange) {
     this.config = config;
@@ -11,6 +14,7 @@ class ObsController {
     this.obs = new OBSWebSocket();
     this.connected = false;
     this.reconnectTimer = null;
+    this.reconnectDelay = RECONNECT_MIN_MS;
 
     this.state = {
       currentScene: null,
@@ -45,6 +49,7 @@ class ObsController {
     try {
       await this.obs.connect(this.config.url, this.config.password);
       this.connected = true;
+      this.reconnectDelay = RECONNECT_MIN_MS; // back up -- reset backoff for the next drop
       console.log('[OBS] connected');
       await this._syncInitialState();
       this.onStateChange();
@@ -68,13 +73,19 @@ class ObsController {
     }
   }
 
+  // Exponential backoff up to RECONNECT_MAX_MS. Without a cap, a multi-day
+  // OBS outage (plausible -- OBS machine off overnight during an event)
+  // would retry every 3s forever: ~28,800 attempts/day, each logging two
+  // lines straight into service.log. Capped at 60s that's at most 1,440/day.
   _scheduleReconnect() {
     if (this.reconnectTimer) return;
+    const delay = this.reconnectDelay;
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, RECONNECT_MAX_MS);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      console.log('[OBS] reconnecting...');
+      console.log(`[OBS] reconnecting (retrying every ${Math.round(delay / 1000)}s)...`);
       this.connect();
-    }, 3000);
+    }, delay);
   }
 
   async setScene(sceneName) {

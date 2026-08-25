@@ -41,6 +41,9 @@ build/Release
 node_modules/
 jspm_packages/
 
+# config-ui service supervisor state (pidfile + log)
+run/
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -141,3 +144,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+.claude/
+.vs/
