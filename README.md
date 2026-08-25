@@ -76,13 +76,27 @@ Settings live in `config.json` (`config.js` just loads it — don't hand-edit
 npm run config-ui
 ```
 
-Open **http://localhost:8787**. From there you can:
+Open **http://localhost:8787** (it only listens on localhost by default — it
+hands out the OBS password and can stop/restart the live service with no
+login, so it's not meant to be reachable from the rest of the network. To
+reach a headless rig from another machine on the same LAN anyway, set
+`CONFIG_UI_HOST=0.0.0.0` when starting it, but understand that removes that
+protection entirely). From there you can:
 - Set the **ATEM IP** by hand, or click **Scan network** to list ATEMs found
   via mDNS on the local network and pick one.
 - Set the **OBS websocket URL/password**, with a **Test connection** button.
 - Add/remove **Stream Deck controls** (key index, label, color, action, and
-  the action's parameter — ATEM input number or OBS scene) and toggle
-  tally/state highlighting per key.
+  the action's parameter — ATEM input number, OBS scene, or folder target)
+  and toggle tally/state highlighting per key.
+- Build **folders**: add a page, then on any key set its action to **Open
+  folder** and pick that page as the target — pressing it switches the whole
+  deck to that page's controls. New pages start with a **Go back** key
+  already on them (index 0) so a folder never dead-ends, but it's a normal
+  key like any other — move it, remove it, add more of them, whatever you
+  want. Nested folders work too: Go back always returns to whichever page
+  you actually opened the current one from, not straight to home.
+- Pick which page is **Home** (shown when the service starts) from the pages
+  list.
 - Manage the **OBS scene name mapping** used by `obsScene` controls.
 - Set the **Stream Deck brightness**.
 
@@ -184,7 +198,8 @@ by hand. Everything it edits lives in `config.json`:
 - **Add an action to an empty key** — e.g. key 7, 8, 9 are unused by default.
   Copy the shape of an existing entry. Available `action` values:
   `atemProgram` (needs `input`), `atemCut`, `atemAuto`, `atemFTB`,
-  `obsScene` (needs `scene`), `obsToggleStream`, `obsToggleRecord`.
+  `obsScene` (needs `scene`), `obsToggleStream`, `obsToggleRecord`,
+  `openFolder` (needs `page` — the target page's id), `goBack`.
 - **Live feedback** — the `feedback` field controls which keys recolor to show
   state. Remove it if you want a key to keep a fixed color.
 

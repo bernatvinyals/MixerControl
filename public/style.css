@@ -130,6 +130,22 @@ button.primary { background: var(--accent); color: #fff; border-color: var(--acc
 button.danger { color: var(--danger); border-color: var(--danger); }
 button.small { padding: 3px 8px; font-size: 12px; }
 
+.pages-table { margin-bottom: 6px; }
+.pages-table td.narrow { width: 56px; text-align: center; }
+.pages-table tr.active-row td:first-child input { font-weight: 600; }
+.pages-table tr.active-row { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.editing-page {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin: 14px 0 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
 table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
 th, td { text-align: left; padding: 6px 6px; font-size: 13px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; }

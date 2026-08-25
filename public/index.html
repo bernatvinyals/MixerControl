@@ -88,7 +88,16 @@
   <div class="col col-wide">
     <section class="card grow">
       <h2>Controls (Stream Deck keys)</h2>
-      <p class="hint">Key index = row * 5 + col for a 15-key deck (0 = top-left). Add or remove rows to add/remove controls.</p>
+      <p class="hint">Pages let you build folders: a key with the "Open folder" action switches the whole deck to another page, and a "Go back" key returns to wherever you opened it from. New pages start with a Go back key already on them.</p>
+
+      <table id="pagesTable" class="pages-table">
+        <thead><tr><th>Page</th><th>Home</th><th></th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button id="addPageBtn">+ Add page</button>
+
+      <h3 id="editingPageLabel" class="editing-page">Editing: </h3>
+      <p class="hint">Key index = row * 5 + col for a 15-key deck (0 = top-left). Add or remove rows to add/remove controls on this page.</p>
       <div class="table-scroll">
         <table id="keysTable">
           <thead>

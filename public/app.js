@@ -1,13 +1,15 @@
 // Minimal, framework-free UI for editing config.json through webui.js's API.
 
 const ACTIONS = [
-  { value: 'atemProgram',      label: 'ATEM: program input', param: 'input', feedback: 'atemProgram' },
-  { value: 'atemCut',          label: 'ATEM: cut',           param: null,    feedback: null },
-  { value: 'atemAuto',         label: 'ATEM: auto transition', param: null,  feedback: null },
-  { value: 'atemFTB',          label: 'ATEM: fade to black', param: null,   feedback: 'atemFTB' },
-  { value: 'obsScene',         label: 'OBS: switch scene',   param: 'scene', feedback: 'obsScene' },
-  { value: 'obsToggleStream',  label: 'OBS: toggle stream',  param: null,   feedback: 'obsStream' },
-  { value: 'obsToggleRecord',  label: 'OBS: toggle record',  param: null,   feedback: 'obsRecord' },
+  { value: 'atemProgram',      label: 'ATEM: program input', param: 'input',  feedback: 'atemProgram' },
+  { value: 'atemCut',          label: 'ATEM: cut',           param: null,     feedback: null },
+  { value: 'atemAuto',         label: 'ATEM: auto transition', param: null,   feedback: null },
+  { value: 'atemFTB',          label: 'ATEM: fade to black', param: null,     feedback: 'atemFTB' },
+  { value: 'obsScene',         label: 'OBS: switch scene',   param: 'scene',  feedback: 'obsScene' },
+  { value: 'obsToggleStream',  label: 'OBS: toggle stream',  param: null,     feedback: 'obsStream' },
+  { value: 'obsToggleRecord',  label: 'OBS: toggle record',  param: null,     feedback: 'obsRecord' },
+  { value: 'openFolder',       label: 'Open folder',         param: 'folder', feedback: null },
+  { value: 'goBack',           label: 'Go back',             param: null,     feedback: null },
 ];
 const actionInfo = (v) => ACTIONS.find((a) => a.value === v) || ACTIONS[0];
 
@@ -17,11 +19,17 @@ const state = {
   obsUrl: '',
   obsPassword: '',
   brightness: 80,
-  scenes: [],  // { id, key, value }
-  keys: [],    // { id, index, label, color, action, input, scene, highlight }
+  scenes: [],        // { id, key, value }
+  pages: [],         // { pid, id, keys: [ {id, index, label, color, action, input, scene, folderTarget, highlight} ] }
+  activePagePid: null, // which page's keys the table below is showing/editing
+  homePagePid: null,   // which page the deck opens on at startup
 };
 
 const $ = (id) => document.getElementById(id);
+
+function activePage() {
+  return state.pages.find((p) => p.pid === state.activePagePid) || state.pages[0] || null;
+}
 
 function setStatus(msg, kind) {
   const el = $('status');
@@ -41,18 +49,34 @@ async function loadConfig() {
 
   state.scenes = Object.entries(cfg.scenes).map(([key, value]) => ({ id: nextId++, key, value }));
 
-  state.keys = Object.entries(cfg.keys)
-    .map(([index, k]) => ({
-      id: nextId++,
-      index: Number(index),
-      label: k.label || '',
-      color: normalizeColor(k.color),
-      action: k.action,
-      input: k.input ?? 1,
-      scene: k.scene ?? (state.scenes[0] ? state.scenes[0].key : ''),
-      highlight: !!k.feedback,
-    }))
-    .sort((a, b) => a.index - b.index);
+  // Pages first (so folder keys below can resolve their target page's id to
+  // our internal pid, regardless of which order pages appear in the file).
+  const pageIdToPid = {};
+  state.pages = Object.keys(cfg.pages).map((id) => {
+    const pid = nextId++;
+    pageIdToPid[id] = pid;
+    return { pid, id, keys: [] };
+  });
+
+  for (const page of state.pages) {
+    const raw = cfg.pages[page.id];
+    page.keys = Object.entries(raw.keys || {})
+      .map(([index, k]) => ({
+        id: nextId++,
+        index: Number(index),
+        label: k.label || '',
+        color: normalizeColor(k.color),
+        action: k.action,
+        input: k.input ?? 1,
+        scene: k.scene ?? (state.scenes[0] ? state.scenes[0].key : ''),
+        folderTarget: k.page && pageIdToPid[k.page] ? pageIdToPid[k.page] : null,
+        highlight: !!k.feedback,
+      }))
+      .sort((a, b) => a.index - b.index);
+  }
+
+  state.homePagePid = pageIdToPid[cfg.homePage] || (state.pages[0] && state.pages[0].pid) || null;
+  state.activePagePid = state.homePagePid;
 
   renderAll();
 }
@@ -73,6 +97,7 @@ function renderAll() {
   $('brightness').value = state.brightness;
   $('brightnessVal').textContent = state.brightness;
   renderScenes();
+  renderPages();
   renderKeys();
 }
 
@@ -97,10 +122,70 @@ function renderScenes() {
   }
 }
 
+// ---- pages / folders --------------------------------------------------------
+
+function renderPages() {
+  const tbody = $('pagesTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  for (const page of state.pages) {
+    const tr = document.createElement('tr');
+    if (page.pid === state.activePagePid) tr.classList.add('active-row');
+    tr.innerHTML = `
+      <td><input type="text" data-field="id" value="${escapeAttr(page.id)}" placeholder="page-id" /></td>
+      <td class="narrow"><input type="radio" name="homePage" ${page.pid === state.homePagePid ? 'checked' : ''} /></td>
+      <td class="narrow"><button class="small ${page.pid === state.activePagePid ? 'primary' : ''}" data-edit>${page.pid === state.activePagePid ? 'Editing' : 'Edit'}</button></td>
+      <td class="actions"><button class="danger small" data-remove>✕</button></td>
+    `;
+    tr.querySelector('[data-field=id]').addEventListener('input', (e) => {
+      page.id = e.target.value;
+      renderKeys(); // folder-target dropdowns elsewhere show page ids
+    });
+    tr.querySelector('[name=homePage]').addEventListener('change', () => {
+      state.homePagePid = page.pid;
+      renderPages();
+    });
+    tr.querySelector('[data-edit]').addEventListener('click', () => {
+      state.activePagePid = page.pid;
+      renderPages();
+      renderKeys();
+    });
+    tr.querySelector('[data-remove]').addEventListener('click', () => removePage(page.pid));
+    tbody.appendChild(tr);
+  }
+}
+
+function removePage(pid) {
+  if (state.pages.length <= 1) {
+    setStatus('at least one page is required', 'err');
+    return;
+  }
+  if (pid === state.homePagePid) {
+    setStatus('cannot delete the home page — set another page as home first', 'err');
+    return;
+  }
+  const stillOpenedBy = state.pages.some((p) =>
+    p.keys.some((k) => k.action === 'openFolder' && k.folderTarget === pid)
+  );
+  if (stillOpenedBy) {
+    setStatus('cannot delete: a folder key elsewhere still opens this page', 'err');
+    return;
+  }
+  state.pages = state.pages.filter((p) => p.pid !== pid);
+  if (state.activePagePid === pid) state.activePagePid = state.homePagePid;
+  renderAll();
+}
+
+// ---- controls (keys) on the currently-edited page ---------------------------
+
 function renderKeys() {
+  const page = activePage();
+  $('editingPageLabel').textContent = 'Editing: ' + (page ? page.id.trim() || '(unnamed page)' : '(no page)');
+
   const tbody = $('keysTable').querySelector('tbody');
   tbody.innerHTML = '';
-  for (const row of state.keys) {
+  if (!page) return;
+
+  for (const row of page.keys) {
     const tr = document.createElement('tr');
 
     const actionOptions = ACTIONS.map(
@@ -125,7 +210,7 @@ function renderKeys() {
       renderKeys();
     });
     tr.querySelector('[data-remove]').addEventListener('click', () => {
-      state.keys = state.keys.filter((r) => r.id !== row.id);
+      page.keys = page.keys.filter((r) => r.id !== row.id);
       renderKeys();
     });
 
@@ -151,6 +236,18 @@ function renderParamCell(cell, row) {
       if (!row.scene && state.scenes[0]) row.scene = state.scenes[0].key;
       sel.addEventListener('change', (e) => { row.scene = e.target.value; });
     }
+  } else if (info.param === 'folder') {
+    // Every page except the one currently being edited -- a folder key
+    // pointing at its own page would just reopen the same screen.
+    const options = state.pages.filter((p) => p.pid !== state.activePagePid);
+    if (!options.length) {
+      cell.innerHTML = `<span class="hint">add another page first</span>`;
+      return;
+    }
+    if (!row.folderTarget || !options.some((p) => p.pid === row.folderTarget)) row.folderTarget = options[0].pid;
+    const opts = options.map((p) => `<option value="${p.pid}" ${p.pid === row.folderTarget ? 'selected' : ''}>${escapeAttr(p.id.trim() || '(unnamed page)')}</option>`).join('');
+    cell.innerHTML = `<select>${opts}</select>`;
+    cell.querySelector('select').addEventListener('change', (e) => { row.folderTarget = Number(e.target.value); });
   } else {
     cell.innerHTML = `<span class="hint">—</span>`;
   }
@@ -171,6 +268,18 @@ function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
+function findDuplicatePageIds() {
+  const seen = new Set();
+  const dupes = new Set();
+  for (const p of state.pages) {
+    const id = p.id.trim();
+    if (!id) continue;
+    if (seen.has(id)) dupes.add(id);
+    seen.add(id);
+  }
+  return Array.from(dupes);
+}
+
 function buildConfigPayload() {
   const scenes = {};
   for (const s of state.scenes) {
@@ -178,14 +287,27 @@ function buildConfigPayload() {
     scenes[s.key.trim()] = s.value.trim();
   }
 
-  const keys = {};
-  for (const k of state.keys) {
-    const info = actionInfo(k.action);
-    const entry = { label: k.label.trim(), color: k.color, action: k.action };
-    if (info.param === 'input') entry.input = k.input;
-    if (info.param === 'scene') entry.scene = k.scene;
-    if (info.feedback && k.highlight) entry.feedback = info.feedback;
-    keys[String(k.index)] = entry;
+  const pidToPageId = {};
+  for (const p of state.pages) {
+    const id = p.id.trim();
+    if (id) pidToPageId[p.pid] = id;
+  }
+
+  const pages = {};
+  for (const p of state.pages) {
+    const id = pidToPageId[p.pid];
+    if (!id) continue; // dropped -- unnamed pages don't get saved
+    const keys = {};
+    for (const k of p.keys) {
+      const info = actionInfo(k.action);
+      const entry = { label: k.label.trim(), color: k.color, action: k.action };
+      if (info.param === 'input') entry.input = k.input;
+      if (info.param === 'scene') entry.scene = k.scene;
+      if (info.param === 'folder') entry.page = pidToPageId[k.folderTarget] || '';
+      if (info.feedback && k.highlight) entry.feedback = info.feedback;
+      keys[String(k.index)] = entry;
+    }
+    pages[id] = { keys };
   }
 
   return {
@@ -193,21 +315,36 @@ function buildConfigPayload() {
     obs: { url: $('obsUrl').value.trim(), password: $('obsPassword').value },
     deck: { brightness: Number($('brightness').value) },
     scenes,
-    keys,
+    pages,
+    homePage: pidToPageId[state.homePagePid] || Object.keys(pages)[0] || '',
   };
 }
 
 function clientValidate(payload) {
   const errors = [];
-  const seen = new Set();
-  for (const idx of Object.keys(payload.keys)) {
-    if (seen.has(idx)) errors.push(`duplicate key index ${idx}`);
-    seen.add(idx);
+  if (!payload.pages || !Object.keys(payload.pages).length) {
+    errors.push('at least one named page is required');
+    return errors;
+  }
+  for (const [pageId, page] of Object.entries(payload.pages)) {
+    const seen = new Set();
+    for (const idx of Object.keys(page.keys)) {
+      if (seen.has(idx)) errors.push(`page "${pageId}": duplicate key index ${idx}`);
+      seen.add(idx);
+    }
+  }
+  if (!payload.homePage || !payload.pages[payload.homePage]) {
+    errors.push('home page must reference an existing page');
   }
   return errors;
 }
 
 async function save() {
+  const dupes = findDuplicatePageIds();
+  if (dupes.length) {
+    setStatus(`duplicate page id(s): ${dupes.join(', ')}`, 'err');
+    return;
+  }
   const payload = buildConfigPayload();
   const errors = clientValidate(payload);
   if (errors.length) {
@@ -289,9 +426,24 @@ $('addSceneBtn').addEventListener('click', () => {
   renderScenes();
   renderKeys();
 });
+$('addPageBtn').addEventListener('click', () => {
+  const pid = nextId++;
+  state.pages.push({
+    pid,
+    id: `page${state.pages.length + 1}`,
+    // Seed every new page with a way back out, per the "folders need a
+    // return button" requirement -- fully editable/removable afterwards,
+    // this is just a sane default so a folder never dead-ends.
+    keys: [{ id: nextId++, index: 0, label: 'BACK', color: '#333333', action: 'goBack', input: 1, scene: '', folderTarget: null, highlight: false }],
+  });
+  state.activePagePid = pid;
+  renderAll();
+});
 $('addKeyBtn').addEventListener('click', () => {
-  const nextIndex = state.keys.length ? Math.max(...state.keys.map((k) => k.index)) + 1 : 0;
-  state.keys.push({
+  const page = activePage();
+  if (!page) return;
+  const nextIndex = page.keys.length ? Math.max(...page.keys.map((k) => k.index)) + 1 : 0;
+  page.keys.push({
     id: nextId++,
     index: nextIndex,
     label: 'NEW',
@@ -299,6 +451,7 @@ $('addKeyBtn').addEventListener('click', () => {
     action: 'atemProgram',
     input: 1,
     scene: state.scenes[0] ? state.scenes[0].key : '',
+    folderTarget: null,
     highlight: false,
   });
   renderKeys();

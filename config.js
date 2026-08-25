@@ -7,8 +7,9 @@
 //   npm run config-ui
 //
 // then open http://localhost:8787 in a browser. It lets you add/remove Stream
-// Deck controls, change OBS scene names, set the OBS websocket URL/password,
-// and set/discover the ATEM's IP address.
+// Deck controls (including folders of controls across multiple pages), change
+// OBS scene names, set the OBS websocket URL/password, and set/discover the
+// ATEM's IP address.
 //
 // config.json fields:
 //   atem.ip            — ATEM's IP address (TCP port 9910)
@@ -17,12 +18,22 @@
 //   deck.brightness     — Stream Deck backlight, 0-100
 //   scenes              — map of short names -> real OBS scene names
 //                         (must match OBS exactly, case-sensitive)
-//   keys                — map of key index -> { label, color, action, ... }
-//                         action one of: atemProgram (+input), atemCut,
-//                         atemAuto, atemFTB, obsScene (+scene), obsToggleStream,
-//                         obsToggleRecord. 'feedback' controls tally/state
+//   homePage            — id of the page shown when the service starts
+//   pages               — map of page id -> { keys }. Each page is its own
+//                         independent set of controls (index -> control),
+//                         letting a folder key switch the whole deck to a
+//                         different page. action one of: atemProgram
+//                         (+input), atemCut, atemAuto, atemFTB, obsScene
+//                         (+scene), obsToggleStream, obsToggleRecord,
+//                         openFolder (+page — the target page id), goBack
+//                         (returns to whichever page you opened this one
+//                         from). 'feedback' controls tally/state
 //                         highlighting.
 //   feedbackColors      — colors used when a feedback state is active
+//
+// (Older config.json files with a single flat `keys` map instead of
+// `pages`/`homePage` are upgraded automatically in memory -- see
+// src/configSchema.js.)
 // =============================================================================
 
-module.exports = require('./config.json');
+module.exports = require('./src/configSchema').normalizeConfig(require('./config.json'));
