@@ -98,7 +98,10 @@ protection entirely). From there you can:
 - Pick which page is **Home** (shown when the service starts) from the pages
   list.
 - Manage the **OBS scene name mapping** used by `obsScene` controls.
-- Set the **Stream Deck brightness**.
+- Set the **Stream Deck brightness** and **grid size** (cols × rows) to
+  match your physical device (Mini 3×2, Original/MK.2 5×3, XL 8×4, ...) —
+  this drives the key-index convention and the live preview grid, and the
+  service warns at startup if it doesn't match what's actually plugged in.
 
 Click **Save** to write `config.json`. The main service (`npm start`) only
 reads config at startup, so restart it after saving — the **Service** panel
@@ -193,8 +196,9 @@ Use `npm run config-ui` (see above) to add/remove keys, remap actions, and
 change scene names, ATEM IP, or OBS connection settings without touching JSON
 by hand. Everything it edits lives in `config.json`:
 
-- **Remap a key** — change its entry under `keys`. Key index = `row * 5 + col`
-  (top-left = 0, bottom-right = 14).
+- **Remap a key** — change its entry under a page's `keys`. Key index =
+  `row * deck.cols + col` (top-left = 0), using whatever grid size you set
+  in `deck.cols`/`deck.rows`.
 - **Add an action to an empty key** — e.g. key 7, 8, 9 are unused by default.
   Copy the shape of an existing entry. Available `action` values:
   `atemProgram` (needs `input`), `atemCut`, `atemAuto`, `atemFTB`,
@@ -220,6 +224,50 @@ by hand. Everything it edits lives in `config.json`:
   this machine and the ATEM: same subnet, no VLAN/AP client-isolation, and the
   local firewall must allow inbound mDNS replies. You can still type the IP in
   by hand.
+
+## Compatibility
+
+This was built and tested against an ATEM Mini Pro and a 15-key Stream Deck
+(Original V2). Other models should mostly work, with some real gaps:
+
+**ATEM.** `atem-connection` (the Sofie/NRK broadcast library this project
+uses) speaks the native Blackmagic UDP protocol and tracks it broadly across
+the whole ATEM line — Mini/Mini Pro/Mini Extreme, Television Studio, and the
+M/E switchers (1 M/E up to 4 M/E, Constellation) should all connect and
+report state the same way. Cut, auto-transition, fade-to-black, program-input
+switching, and tally all work through that same API regardless of model.
+The one real limitation is in *this app's* code, not the library:
+`src/atem.js` only ever reads/writes `state.video.mixEffects[0]` — **M/E 1
+only**. On a multi-M/E switcher you can't reach M/E 2-4 without code changes
+(the library supports them; this wrapper just doesn't expose them yet).
+"Scan network" relies on the device announcing itself via mDNS
+(`_blackmagic._tcp`), which is near-universal on modern firmware — very old
+firmware could in theory not implement it, in which case you'd just type the
+IP in by hand instead. Verify against your specific model/firmware in
+staging before relying on this live — it hasn't been tested against hardware
+beyond the Mini Pro this was built around.
+
+**Stream Deck.** `@elgato-stream-deck/node` abstracts the key layout via
+`deck.CONTROLS`, and this app reads that rather than assuming a fixed key
+count, so any button-only device should work once `deck.cols`/`deck.rows`
+(config UI → Stream Deck panel) match it:
+
+- **Original, Original V2, MK.2** (15 keys, 5×3), **Mini** (6 keys, 3×2),
+  **XL** (32 keys, 8×4) — full support: buttons, colors, labels, tally,
+  folders.
+- **Stream Deck Plus** — has only 8 buttons plus 4 rotary dials and a
+  touchscreen strip; this app only handles button-down events and per-key
+  image fills, so the dials/touchscreen are inert. You'd get the 8 buttons
+  and nothing else.
+- **Stream Deck Pedal** — 3 foot switches with **no display**. Presses would
+  still trigger actions, but there's nothing to show colors/tally on.
+- **Stream Deck Neo** — has a small info-strip display separate from the
+  keys, which isn't handled here either.
+
+None of this crashes on an unsupported device — every key draw is wrapped in
+its own try/catch — you'd just silently get no visual feedback on the parts
+that aren't handled. Wiring up encoders/touchscreens for the Plus/Neo would
+be real development work, not a config change.
 
 ## Notes
 

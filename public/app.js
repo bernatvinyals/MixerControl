@@ -19,6 +19,8 @@ const state = {
   obsUrl: '',
   obsPassword: '',
   brightness: 80,
+  deckCols: 5,
+  deckRows: 3,
   scenes: [],        // { id, key, value }
   pages: [],         // { pid, id, keys: [ {id, index, label, color, action, input, scene, folderTarget, highlight} ] }
   activePagePid: null, // which page's keys the table below is showing/editing
@@ -46,6 +48,8 @@ async function loadConfig() {
   state.obsUrl = cfg.obs.url;
   state.obsPassword = cfg.obs.password;
   state.brightness = cfg.deck.brightness;
+  state.deckCols = cfg.deck.cols;
+  state.deckRows = cfg.deck.rows;
 
   state.scenes = Object.entries(cfg.scenes).map(([key, value]) => ({ id: nextId++, key, value }));
 
@@ -96,6 +100,11 @@ function renderAll() {
   $('obsPassword').value = state.obsPassword;
   $('brightness').value = state.brightness;
   $('brightnessVal').textContent = state.brightness;
+  $('deckCols').value = state.deckCols;
+  $('deckRows').value = state.deckRows;
+  $('keyIndexHint').textContent =
+    `Key index = row * ${state.deckCols} + col for your ${state.deckCols}×${state.deckRows} deck (0 = top-left). ` +
+    `Add or remove rows to add/remove controls on this page.`;
   renderScenes();
   renderPages();
   renderKeys();
@@ -202,9 +211,12 @@ function renderKeys() {
       <td class="actions"><button class="danger small" data-remove>✕</button></td>
     `;
 
-    tr.querySelector('[data-field=index]').addEventListener('input', (e) => { row.index = Number(e.target.value); });
-    tr.querySelector('[data-field=label]').addEventListener('input', (e) => { row.label = e.target.value; });
-    tr.querySelector('[data-field=color]').addEventListener('input', (e) => { row.color = e.target.value; });
+    // These three change what the key actually looks like, but don't call
+    // renderKeys() (that would rebuild the table mid-keystroke and drop
+    // focus/cursor position) -- update just the preview grid instead.
+    tr.querySelector('[data-field=index]').addEventListener('input', (e) => { row.index = Number(e.target.value); renderPreview(); });
+    tr.querySelector('[data-field=label]').addEventListener('input', (e) => { row.label = e.target.value; renderPreview(); });
+    tr.querySelector('[data-field=color]').addEventListener('input', (e) => { row.color = e.target.value; renderPreview(); });
     tr.querySelector('[data-field=action]').addEventListener('change', (e) => {
       row.action = e.target.value;
       renderKeys();
@@ -219,6 +231,84 @@ function renderKeys() {
 
     tbody.appendChild(tr);
   }
+
+  renderPreview();
+}
+
+// ---- live "what will the deck actually look like" preview -------------------
+
+// Move the control at `fromIndex` to `toIndex`. If `toIndex` is already
+// occupied, the two controls swap indices instead of one clobbering the
+// other -- dropping a key onto an existing one should never silently
+// destroy it.
+function moveKey(page, fromIndex, toIndex) {
+  if (fromIndex === toIndex) return;
+  const src = page.keys.find((k) => k.index === fromIndex);
+  if (!src) return;
+  const dst = page.keys.find((k) => k.index === toIndex);
+  if (dst) dst.index = fromIndex;
+  src.index = toIndex;
+  page.keys.sort((a, b) => a.index - b.index); // keep the table below in the same order as the grid
+  renderKeys();
+}
+
+function renderPreview() {
+  const grid = $('deckPreview');
+  const page = activePage();
+  const cols = state.deckCols;
+  const rows = state.deckRows;
+  const total = cols * rows;
+
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  const byIndex = new Map();
+  if (page) for (const k of page.keys) byIndex.set(k.index, k);
+
+  grid.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const k = byIndex.get(i);
+    const cell = document.createElement('div');
+
+    if (k) {
+      cell.className = 'deck-key';
+      cell.style.background = k.color;
+      cell.textContent = k.label;
+      cell.title = `key ${i}: ${k.label || '(no label)'} — drag to move or swap`;
+      cell.draggable = true;
+      cell.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(i));
+        e.dataTransfer.effectAllowed = 'move';
+        cell.classList.add('dragging');
+      });
+      cell.addEventListener('dragend', () => cell.classList.remove('dragging'));
+    } else {
+      cell.className = 'deck-key empty';
+      cell.title = `key ${i}: empty`;
+    }
+
+    // Every cell (empty or not) is a valid drop target -- dropping onto an
+    // empty one moves the key there, dropping onto an occupied one swaps.
+    cell.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      cell.classList.add('drop-target');
+    });
+    cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
+    cell.addEventListener('drop', (e) => {
+      e.preventDefault();
+      cell.classList.remove('drop-target');
+      const from = Number(e.dataTransfer.getData('text/plain'));
+      if (!page || Number.isNaN(from)) return;
+      moveKey(page, from, i);
+    });
+
+    grid.appendChild(cell);
+  }
+
+  const overflow = page ? page.keys.filter((k) => k.index < 0 || k.index >= total).length : 0;
+  $('deckPreviewHint').textContent = overflow
+    ? `${overflow} control(s) use a key index outside the visible ${cols}×${rows} grid and aren't shown above.`
+    : '';
 }
 
 function renderParamCell(cell, row) {
@@ -313,7 +403,11 @@ function buildConfigPayload() {
   return {
     atem: { ip: $('atemIp').value.trim() },
     obs: { url: $('obsUrl').value.trim(), password: $('obsPassword').value },
-    deck: { brightness: Number($('brightness').value) },
+    deck: {
+      brightness: Number($('brightness').value),
+      cols: Number($('deckCols').value),
+      rows: Number($('deckRows').value),
+    },
     scenes,
     pages,
     homePage: pidToPageId[state.homePagePid] || Object.keys(pages)[0] || '',
@@ -322,6 +416,8 @@ function buildConfigPayload() {
 
 function clientValidate(payload) {
   const errors = [];
+  if (!Number.isInteger(payload.deck.cols) || payload.deck.cols < 1) errors.push('deck grid cols must be a positive whole number');
+  if (!Number.isInteger(payload.deck.rows) || payload.deck.rows < 1) errors.push('deck grid rows must be a positive whole number');
   if (!payload.pages || !Object.keys(payload.pages).length) {
     errors.push('at least one named page is required');
     return errors;
@@ -421,6 +517,18 @@ $('saveBtn').addEventListener('click', save);
 $('scanBtn').addEventListener('click', scanForAtems);
 $('testObsBtn').addEventListener('click', testObs);
 $('brightness').addEventListener('input', (e) => { $('brightnessVal').textContent = e.target.value; });
+function onDeckGridChange() {
+  const cols = Math.max(1, Number($('deckCols').value) || 1);
+  const rows = Math.max(1, Number($('deckRows').value) || 1);
+  state.deckCols = cols;
+  state.deckRows = rows;
+  $('keyIndexHint').textContent =
+    `Key index = row * ${cols} + col for your ${cols}×${rows} deck (0 = top-left). ` +
+    `Add or remove rows to add/remove controls on this page.`;
+  renderPreview();
+}
+$('deckCols').addEventListener('input', onDeckGridChange);
+$('deckRows').addEventListener('input', onDeckGridChange);
 $('addSceneBtn').addEventListener('click', () => {
   state.scenes.push({ id: nextId++, key: `scene${state.scenes.length + 1}`, value: '' });
   renderScenes();

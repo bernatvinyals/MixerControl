@@ -30,13 +30,6 @@ body {
   flex-direction: column;
 }
 
-/* Desktop: fit everything in the viewport, one screen, no page scroll --
-   columns fill the remaining height and scroll internally if they have to.
-   Narrow viewports fall back to a normal scrolling single column below. */
-@media (min-width: 821px) {
-  body { height: 100vh; overflow: hidden; }
-}
-
 header {
   display: flex;
   align-items: center;
@@ -54,31 +47,52 @@ header h1 { font-size: 16px; margin: 0; flex: 0 0 auto; }
 
 .header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; flex: 0 0 auto; }
 
+/* Mobile-first base: a plain vertical stack, page scrolls normally. Nothing
+   here relies on a fixed viewport height, so there's no clipping risk. */
 main {
   padding: 16px 20px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  flex-direction: column;
   gap: 16px;
   flex: 1 1 auto;
   min-height: 0;
 }
-
-/* Column layout: everything visible side-by-side instead of one long
-   vertical stack. Columns wrap to full width on narrow viewports. */
 .col {
-  flex: 1 1 300px;
-  min-width: 280px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-height: 0;
 }
-.col-wide { flex: 1.8 1 420px; }
 
-@media (min-width: 821px) {
+/* Desktop: fit everything in the viewport, one screen, no page scroll --
+   columns fill the remaining height and scroll internally if they have to.
+   This is a CSS Grid, deliberately NOT flexbox with flex-wrap: an earlier
+   flex-wrap version wrapped columns onto a second line at some in-between
+   widths (the columns' combined minimum widths didn't reliably fit above
+   the old breakpoint), and a lone item on its own flex line doesn't get
+   stretched to the full container height by align-items -- it just sizes to
+   its own content, which then got silently clipped by overflow:hidden below
+   with no scrollbar. Grid's explicit fixed column count has no equivalent
+   "wrap to a new line" failure mode, so this can't recur. 940px leaves
+   headroom above the columns' combined width floor (280+280+320px + gaps +
+   padding ≈ 932px) so a grid track is never forced narrower than its
+   minmax() floor either. */
+@media (min-width: 940px) {
+  body { overflow: hidden; }
+  main {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr) minmax(320px, 1.8fr);
+    align-items: stretch;
+  }
   .col { overflow-y: auto; }
-  .card.grow .log { max-height: 42vh; }
+  .card.grow .log {
+    /* More room on desktop, but still a hard cap -- NOT "none". Letting
+       this grow unbounded and relying on height-propagation through nested
+       containers to constrain it is exactly what caused the clipping bug
+       above in the first place; a fixed vh cap + overflow-y:auto guarantees
+       scrolling kicks in regardless of how the surrounding layout resolves. */
+    max-height: 42vh;
+  }
 }
 
 .card {
@@ -96,10 +110,6 @@ main {
 .card.grow .table-scroll, .card.grow .log { flex: 1 1 auto; min-height: 80px; }
 
 .table-scroll { overflow: auto; max-height: 64vh; }
-
-@media (max-width: 820px) {
-  .col, .col-wide { flex: 1 1 100%; }
-}
 
 .row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .row label { min-width: 120px; font-size: 13px; color: var(--muted); }
@@ -134,6 +144,50 @@ button.small { padding: 3px 8px; font-size: 12px; }
 .pages-table td.narrow { width: 56px; text-align: center; }
 .pages-table tr.active-row td:first-child input { font-weight: 600; }
 .pages-table tr.active-row { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.deck-preview {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  background: #0b0d10;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0 auto 4px;
+  /* Fixed, capped size regardless of column width -- aspect-ratio cells
+     sized purely off an unbounded column width is exactly the kind of
+     "trust the flex/grid math" growth that already caused a height bug
+     once in this app (the service log). A real Stream Deck is small; the
+     preview doesn't need to scale up to fill a wide column. */
+  max-width: 380px;
+  width: 100%;
+}
+.deck-key {
+  aspect-ratio: 1 / 1;
+  max-height: 70px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+  overflow: hidden;
+  word-break: break-word;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+  transition: opacity .12s, box-shadow .12s;
+}
+.deck-key.empty {
+  background: #17191d !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04);
+}
+.deck-key:not(.empty) { cursor: grab; }
+.deck-key.dragging { opacity: .35; cursor: grabbing; }
+.deck-key.drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
 
 .editing-page {
   font-size: 12px;

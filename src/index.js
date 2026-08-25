@@ -133,6 +133,14 @@ async function main() {
   await deck.setBrightness(config.deck.brightness);
   const keyControls = deck.CONTROLS.filter((c) => c.type === 'button');
   console.log(`[deck] connected: ${deck.PRODUCT_NAME} (${deck.MODEL}), ${keyControls.length} keys`);
+  const configuredKeys = config.deck.cols * config.deck.rows;
+  if (configuredKeys !== keyControls.length) {
+    console.warn(
+      `[deck] config.json says ${config.deck.cols}x${config.deck.rows} (${configuredKeys} keys), ` +
+      `but this device has ${keyControls.length} — key indices/preview may not match the physical layout. ` +
+      `Update deck.cols/deck.rows (or in the config UI's Stream Deck panel) to fix.`
+    );
+  }
 
   deck.on('down', (control) => handleKey(control.index));
   deck.on('error', (e) => console.error('[deck] error:', e));

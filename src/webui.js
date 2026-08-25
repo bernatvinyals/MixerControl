@@ -81,6 +81,12 @@ function validate(cfg) {
   if (!cfg.deck || typeof cfg.deck.brightness !== 'number') {
     errors.push('deck.brightness must be a number');
   }
+  if (!cfg.deck || !Number.isInteger(cfg.deck.cols) || cfg.deck.cols < 1) {
+    errors.push('deck.cols must be a positive integer');
+  }
+  if (!cfg.deck || !Number.isInteger(cfg.deck.rows) || cfg.deck.rows < 1) {
+    errors.push('deck.rows must be a positive integer');
+  }
   if (!cfg.scenes || typeof cfg.scenes !== 'object') {
     errors.push('scenes must be an object');
   }

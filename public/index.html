@@ -64,6 +64,12 @@
         <input id="brightness" type="range" min="0" max="100" step="1" />
         <span id="brightnessVal"></span>
       </div>
+      <div class="row">
+        <label>Grid size</label>
+        <input id="deckCols" type="number" min="1" max="16" style="width:60px" /> cols ×
+        <input id="deckRows" type="number" min="1" max="16" style="width:60px" /> rows
+      </div>
+      <p class="hint">Match your physical device: Mini is 3×2, Original/MK.2 is 5×3, XL is 8×4. Only affects the key-index convention and the preview below — doesn't limit which indices you can use.</p>
     </section>
 
     <section class="card grow">
@@ -97,7 +103,12 @@
       <button id="addPageBtn">+ Add page</button>
 
       <h3 id="editingPageLabel" class="editing-page">Editing: </h3>
-      <p class="hint">Key index = row * 5 + col for a 15-key deck (0 = top-left). Add or remove rows to add/remove controls on this page.</p>
+      <p class="hint">Drag a key onto another slot to move it there — drop it on an occupied slot to swap the two.</p>
+
+      <div id="deckPreview" class="deck-preview"></div>
+      <p id="deckPreviewHint" class="hint"></p>
+
+      <p id="keyIndexHint" class="hint"></p>
       <div class="table-scroll">
         <table id="keysTable">
           <thead>

@@ -15,9 +15,27 @@
 // =============================================================================
 
 const ROOT_PAGE_ID = 'root';
+const DEFAULT_DECK_COLS = 5;
+const DEFAULT_DECK_ROWS = 3;
+
+function positiveInt(n, fallback) {
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
 
 function normalizeConfig(raw) {
   const cfg = { ...raw };
+
+  // deck.cols/deck.rows describe the physical grid (Stream Deck Mini is
+  // 3x2, Original/MK.2 is 5x3, XL is 8x4, ...) -- used for the key-index
+  // convention (row * cols + col), the config UI's preview grid, and a
+  // startup sanity check against whatever's actually plugged in. Default to
+  // 5x3 (the original assumption this app shipped with) if missing/invalid.
+  cfg.deck = {
+    ...cfg.deck,
+    brightness: Number.isInteger(cfg.deck?.brightness) ? cfg.deck.brightness : 80,
+    cols: positiveInt(cfg.deck?.cols, DEFAULT_DECK_COLS),
+    rows: positiveInt(cfg.deck?.rows, DEFAULT_DECK_ROWS),
+  };
 
   if (!cfg.pages || typeof cfg.pages !== 'object' || Object.keys(cfg.pages).length === 0) {
     cfg.pages = {
